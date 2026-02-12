@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+
+
+# Selenium cookies
+cookies.pkl
+cookies_cookie.exe
+criar_cookie.exe     
+loop_click.exe
+# ChromeDriver cache
+.chromedriver/
+*.log
+chromedriver.log
+geckodriver.log
+selenium-logs/
+screenshots/
+# IDE
+.vscode/
+.idea/
+
+# Outros arquivos temporários
+*.log
+*.tmp
+
+#Pyinstaller
+build/
+dist/
+*.egg
+*.egg-info/
+*.spec
+*.exe
+*.exe~
+*.manifest
+*.manifest~
+
