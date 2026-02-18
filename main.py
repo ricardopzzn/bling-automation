@@ -10,6 +10,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import StaleElementReferenceException
 from webdriver_manager.chrome import ChromeDriverManager
 
 
@@ -88,29 +89,46 @@ botao_filtrar.click()
 actions = ActionChains(driver)
 
 # --- LOOP PRINCIPAL DE PÁGINA ---
+
 while True:
     wait.until(EC.invisibility_of_element_located((By.ID, "modalWait")))
 
-    # Resetar índice para a nova página
     indice = 0
-    linhas = driver.find_elements(By.XPATH, "//table/tbody/tr")
 
-    # Loop para percorrer todas as linhas da página
-    while indice < len(linhas):
-        linha = linhas[indice]
+    while True:
+        linhas = driver.find_elements(By.XPATH, "//table/tbody/tr")
 
+        if indice >= len(linhas):
+            break
+            
+        linha = linhas[indice]    
+        
         try:
-            # verifica se contém "Pendente"
-            if "Pendente" not in linha.text:
+            # verifica se existe badge "Pendente" na linha
+            pendente = linha.find_elements(
+                By.XPATH,
+                ".//span[contains(@class,'Badge--incomplete') and contains(.,'Pendente')]"
+            )
+
+            if not pendente:
                 indice += 1
                 continue
 
-            # scroll até a linha
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", linha)
+            # ⚠️ IMPORTANTE:
+            # geralmente o clique não é no span
+            # então vamos subir e clicar na própria linha
+            driver.execute_script(
+                "arguments[0].scrollIntoView({block:'center'});",
+                linha
+            )
 
-            # clique manual real
-            actions.move_to_element(linha).pause(0.3).click().perform()
-            print(f"[+] Clique manual índice {indice}")
+            sleep(0.5)
+
+            # movimento + pausa + clique
+            actions.move_to_element(linha)\
+                .pause(0.4)\
+                .click()\
+                .perform()
 
             # espera abrir a nota
             wait.until(EC.presence_of_element_located((By.ID, "valorProdutos")))
@@ -134,12 +152,13 @@ while True:
             # Salvar
             save_button = wait.until(EC.element_to_be_clickable((By.ID, "botaoSalvar")))
             driver.execute_script("arguments[0].click();", save_button)
-            sleep(0.5)
+            sleep(2)
             indice += 1
 
-        except Exception as e:
-            print(f"[!] Erro no índice {indice}:", e)
-            indice += 1
+        except StaleElementReferenceException:
+            print("Stale detectado, tentando novamente...")
+            continue
+            
 
     # --- Depois de processar todas as linhas da página, tenta ir para a próxima ---
     try:
