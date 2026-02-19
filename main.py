@@ -86,94 +86,96 @@ sleep(0.5)
 botao_filtrar.click()
 
 
-actions = ActionChains(driver)
 
 # --- LOOP PRINCIPAL DE PÁGINA ---
+# --- LOOP PRINCIPAL ---
+# Começamos em 0 para pegar o primeiro item da lista filtrada
+indice = 0 
 
 while True:
+    # 1. Aguarda o carregamento sumir
     wait.until(EC.invisibility_of_element_located((By.ID, "modalWait")))
+    sleep(2) 
 
-    indice = 0
+    # 2. Recaptura apenas as linhas que possuem o status Pendente
+    # Isso evita percorrer as 24 linhas vazias que você viu no log
+    linhas = driver.find_elements(By.XPATH, "//tr[.//span[contains(.,'Pendente')]]")
 
-    while True:
-        linhas = driver.find_elements(By.XPATH, "//table/tbody/tr")
-
-        if indice >= len(linhas):
-            break
-            
-        linha = linhas[indice]    
-        
-        try:
-            # verifica se existe badge "Pendente" na linha
-            pendente = linha.find_elements(
-                By.XPATH,
-                ".//span[contains(@class,'Badge--incomplete') and contains(.,'Pendente')]"
-            )
-
-            if not pendente:
-                indice += 1
-                continue
-
-            # ⚠️ IMPORTANTE:
-            # geralmente o clique não é no span
-            # então vamos subir e clicar na própria linha
-            driver.execute_script(
-                "arguments[0].scrollIntoView({block:'center'});",
-                linha
-            )
-
-            sleep(0.5)
-
-            # movimento + pausa + clique
-            actions.move_to_element(linha)\
-                .pause(0.4)\
-                .click()\
-                .perform()
-
-            # espera abrir a nota
-            wait.until(EC.presence_of_element_located((By.ID, "valorProdutos")))
-
-            # Input do valor
-            input_valor = wait.until(EC.presence_of_element_located((By.ID, "valorProdutos")))
-            valor_str = input_valor.get_attribute("value")
-            if valor_str:
-                valor_float = float(valor_str.replace(".", "").replace(",", "."))
-                if valor_float < 1000.00:
-                    desconto = valor_float * 0.9
-                    input_desconto = wait.until(EC.presence_of_element_located((By.ID, "desconto")))
-                    for _ in range(10):
-                        sleep(0.5)
-                        input_desconto.send_keys(Keys.BACKSPACE)
-                    sleep(2)
-                    input_desconto.send_keys(f"{desconto:.2f}".replace(".", ","))
-                    driver.execute_script("arguments[0].dispatchEvent(new Event('change'))", input_desconto)
-                    sleep(2)
-
-            # Salvar
-            save_button = wait.until(EC.element_to_be_clickable((By.ID, "botaoSalvar")))
-            driver.execute_script("arguments[0].click();", save_button)
-            sleep(2)
-            indice += 1
-
-        except StaleElementReferenceException:
-            print("Stale detectado, tentando novamente...")
-            continue
-            
-
-    # --- Depois de processar todas as linhas da página, tenta ir para a próxima ---
-    try:
-        botao_proximo = wait.until(
-            EC.element_to_be_clickable(
-                (By.XPATH, "//span[contains(text(),'Próxima') or contains(@class,'fa-angle-right')]")
-            )
-        )
-        sleep(0.3)
-        botao_proximo.click()
-        sleep(3)
-
-    except Exception:
-        print("[+] - Última página alcançada, encerrado.")
+    # Verifica se o índice ainda é válido
+    if indice >= len(linhas):
+        print("Todos os itens pendentes desta página foram processados.")
+        # Lógica de próxima página se necessário
         break
+        
+    linha = linhas[indice]    
+    
+    try:
+        # 3. Localiza o badge dentro da linha capturada
+        pendente = linha.find_elements(By.XPATH, ".//span[contains(.,'Pendente')]")
 
-driver.quit()
+        if not pendente:
+            indice += 1
+            continue
+
+        # 4. AÇÃO DE CLIQUE
+        elemento = pendente[0]
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elemento)
+        sleep(0.5)
+        elemento.click()
+        print(f"Processando item pendente: {indice}")
+
+        # 5. ESPERA A TELA DE EDIÇÃO ABRIR
+        wait.until(EC.invisibility_of_element_located((By.ID, "modalWait")))
+        
+        # --- INÍCIO DO SEU BLOCO DE VALOR (MANTIDO IGUAL) ---
+        input_valor = wait.until(EC.presence_of_element_located((By.ID, "valorProdutos")))
+        valor_str = input_valor.get_attribute("value")
+        
+        if valor_str:
+            valor_float = float(valor_str.replace(".", "").replace(",", "."))
+            if valor_float < 1000.00:
+                desconto = valor_float * 0.9
+                input_desconto = wait.until(EC.presence_of_element_located((By.ID, "desconto")))
+                
+                # Limpando o campo
+                for _ in range(10):
+                    input_desconto.send_keys(Keys.BACKSPACE)
+                
+                sleep(1)
+                input_desconto.send_keys(f"{desconto:.2f}".replace(".", ","))
+                driver.execute_script("arguments[0].dispatchEvent(new Event('change'))", input_desconto)
+                sleep(2)
+
+        # 6. SALVAR
+        save_button = wait.until(EC.element_to_be_clickable((By.ID, "botaoSalvar")))
+        driver.execute_script("arguments[0].click();", save_button)
+        
+        # 7. ESPERA FINALIZAÇÃO DO SALVAMENTO
+        wait.until(EC.invisibility_of_element_located((By.ID, "modalWait")))
+        print(f"Item {indice} salvo com sucesso.")
+        
+        # SÓ INCREMENTA O ÍNDICE AQUI (após salvar com sucesso)
+        indice += 1
+        sleep(2) # Pausa para o sistema não repetir o clique no mesmo item
+
+    except Exception as e:
+        print(f"Erro ao processar o índice {indice}: {e}")
+        indice += 1 # Pula se der erro para não travar o bot
+        continue
+    
+    # Só tenta clicar em "Próxima" SE o índice atual for a última linha da tabela
+    if indice >= len(linhas):
+        try:
+            botao_proximo = wait.until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//span[contains(text(),'Próxima') or contains(@class,'fa-angle-right')]")
+                )
+            )
+            print("Indo para a próxima página...")
+            botao_proximo.click()
+            sleep(3)
+            indice = 0
+        except Exception:
+            print("[+] - Última página alcançada, encerrado.")
+            break
      
