@@ -104,8 +104,22 @@ while True:
     # Verifica se o índice ainda é válido
     if indice >= len(linhas):
         print("Todos os itens pendentes desta página foram processados.")
-        # Lógica de próxima página se necessário
-        break
+        # Lógica de próxima página
+        try:
+            botao_proximo = wait.until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//span[contains(text(),'Próxima') or contains(@class,'fa-angle-right')]")
+                )
+            )
+            print("Indo para a próxima página...")
+            botao_proximo.click()
+            sleep(3)
+            indice = 0
+        except Exception:
+            print("[+] - Última página alcançada, encerrado.")
+            break
+        
+        continue
         
     linha = linhas[indice]    
     
@@ -163,19 +177,4 @@ while True:
         indice += 1 # Pula se der erro para não travar o bot
         continue
     
-    # Só tenta clicar em "Próxima" SE o índice atual for a última linha da tabela
-    if indice >= len(linhas):
-        try:
-            botao_proximo = wait.until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, "//span[contains(text(),'Próxima') or contains(@class,'fa-angle-right')]")
-                )
-            )
-            print("Indo para a próxima página...")
-            botao_proximo.click()
-            sleep(3)
-            indice = 0
-        except Exception:
-            print("[+] - Última página alcançada, encerrado.")
-            break
-     
+driver.quit()
