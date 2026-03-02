@@ -150,7 +150,7 @@ while True:
                 input_desconto = wait.until(EC.presence_of_element_located((By.ID, "desconto")))
                 
                 # Limpando o campo
-                for _ in range(10):
+                for _ in range(20):
                     input_desconto.send_keys(Keys.BACKSPACE)
                 
                 sleep(1)
