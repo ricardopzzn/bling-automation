@@ -132,7 +132,7 @@ while True:
         # 4. AÇÃO DE CLIQUE
         elemento = pendente[0]
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elemento)
-        sleep(0.5)
+        sleep(1)
         elemento.click()
         print(f"Processando item pendente: {indice}")
 
@@ -160,6 +160,7 @@ while True:
 
         # 6. SALVAR
         save_button = wait.until(EC.element_to_be_clickable((By.ID, "botaoSalvar")))
+        sleep(0.5)
         driver.execute_script("arguments[0].click();", save_button)
         
         # 7. ESPERA FINALIZAÇÃO DO SALVAMENTO
